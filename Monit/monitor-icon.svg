@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none">
+  <title>Monitor — minimal app icon</title>
+  <desc>White rounded background with CPU, memory and activity symbols in the upper left corner.</desc>
+  <rect x="32" y="32" width="960" height="960" rx="216" fill="white"/>
+  <g stroke="#202328" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+    <g id="cpu" transform="translate(144 150)">
+      <rect x="16" y="16" width="72" height="72" rx="16"/>
+      <rect x="36" y="36" width="32" height="32" rx="5" stroke-width="8"/>
+      <path d="M36 4v12M68 4v12M36 88v12M68 88v12M4 36h12M4 68h12M88 36h12M88 68h12"/>
+    </g>
+    <g id="memory" transform="translate(296 150)">
+      <path d="M10 29h84v49H62v-9H42v9H10Z"/>
+      <path d="M29 45v12M52 45v12M75 45v12M24 78v12M42 78v12M62 78v12M80 78v12" stroke-width="8"/>
+    </g>
+    <g id="activity" transform="translate(448 150)">
+      <path d="M4 58h20l17-35 23 62 16-34h20"/>
+    </g>
+  </g>
+</svg>
