@@ -8,56 +8,87 @@ struct MenuBarView: View {
     let openSettings: () -> Void
     let quit: () -> Void
 
+#if DEBUG
+    private let previewSnapshot: SystemSnapshot?
+    private let previewNetworkIdentity: NetworkIdentity?
+#endif
+
+    init(openSettings: @escaping () -> Void, quit: @escaping () -> Void) {
+        self.openSettings = openSettings
+        self.quit = quit
+#if DEBUG
+        previewSnapshot = nil
+        previewNetworkIdentity = nil
+#endif
+    }
+
+#if DEBUG
+    init(
+        previewSnapshot: SystemSnapshot,
+        previewNetworkIdentity: NetworkIdentity,
+        openSettings: @escaping () -> Void,
+        quit: @escaping () -> Void
+    ) {
+        self.openSettings = openSettings
+        self.quit = quit
+        self.previewSnapshot = previewSnapshot
+        self.previewNetworkIdentity = previewNetworkIdentity
+    }
+#endif
+
     var body: some View {
+        let snapshot = displayedSnapshot
+        let networkIdentity = displayedNetworkIdentity
+
         GlassEffectContainer(spacing: Layout.sectionSpacing) {
             VStack(spacing: Layout.sectionSpacing) {
                 ProcessorCard(
                     title: "CPU",
                     symbol: "cpu",
                     accentColor: .blue,
-                    usage: metrics.snapshot.cpuUsage,
-                    temperature: metrics.snapshot.cpuTemperature,
+                    usage: snapshot.cpuUsage,
+                    temperature: snapshot.cpuTemperature,
                     primaryRows: [
-                        MetricRow(id: "cpu-power", label: "Power", value: MetricText.power(metrics.snapshot.cpuPowerWatts))
+                        MetricRow(id: "cpu-power", label: "Power", value: MetricText.power(snapshot.cpuPowerWatts))
                     ],
-                    coreUsages: metrics.snapshot.cpuCoreUsages,
-                    performanceCoreCount: metrics.snapshot.cpuPerformanceCoreCount,
-                    performanceFrequencyHz: metrics.snapshot.cpuPerformanceFrequencyHz,
-                    efficiencyFrequencyHz: metrics.snapshot.cpuEfficiencyFrequencyHz,
-                    processes: metrics.snapshot.topCPUProcesses
+                    coreUsages: snapshot.cpuCoreUsages,
+                    performanceCoreCount: snapshot.cpuPerformanceCoreCount,
+                    performanceFrequencyHz: snapshot.cpuPerformanceFrequencyHz,
+                    efficiencyFrequencyHz: snapshot.cpuEfficiencyFrequencyHz,
+                    processes: snapshot.topCPUProcesses
                 )
 
                 MemoryCard(
-                    usage: metrics.snapshot.memoryUsage,
-                    breakdown: metrics.snapshot.memoryBreakdown,
-                    swapUsedBytes: metrics.snapshot.swapUsedBytes,
-                    processes: metrics.snapshot.topMemoryProcesses
+                    usage: snapshot.memoryUsage,
+                    breakdown: snapshot.memoryBreakdown,
+                    swapUsedBytes: snapshot.swapUsedBytes,
+                    processes: snapshot.topMemoryProcesses
                 )
 
                 ProcessorCard(
                     title: "GPU",
                     symbol: "square.stack.3d.up.fill",
                     accentColor: .green,
-                    usage: metrics.snapshot.gpuUsage,
-                    temperature: metrics.snapshot.gpuTemperature,
+                    usage: snapshot.gpuUsage,
+                    temperature: snapshot.gpuTemperature,
                     primaryRows: [
                         MetricRow(
                             id: "gpu-frequency",
                             label: "Frequency",
-                            value: MetricText.frequency(metrics.snapshot.gpuFrequencyHz)
+                            value: MetricText.frequency(snapshot.gpuFrequencyHz)
                         ),
                         MetricRow(
                             id: "gpu-vram",
                             label: "VRAM",
                             value: MetricText.memoryPair(
-                                used: metrics.snapshot.gpuMemoryUsedBytes,
-                                allocated: metrics.snapshot.gpuMemoryAllocatedBytes
+                                used: snapshot.gpuMemoryUsedBytes,
+                                allocated: snapshot.gpuMemoryAllocatedBytes
                             )
                         ),
                         MetricRow(
                             id: "gpu-power",
                             label: "Power",
-                            value: MetricText.power(metrics.snapshot.gpuPowerWatts)
+                            value: MetricText.power(snapshot.gpuPowerWatts)
                         )
                     ],
                     coreUsages: nil,
@@ -68,8 +99,9 @@ struct MenuBarView: View {
                 )
 
                 SystemCard(
-                    snapshot: metrics.snapshot,
-                    networkIdentity: metrics.networkIdentity,
+                    snapshot: snapshot,
+                    networkIdentity: networkIdentity,
+                    tintColor: displayedSystemCardTint,
                     openSettings: openSettings,
                     quit: quit
                 )
@@ -78,6 +110,26 @@ struct MenuBarView: View {
         .padding(Layout.panelPadding)
         .frame(width: Layout.panelWidth)
                 .padding(Self.transparentMargin)
+    }
+
+    private var displayedSnapshot: SystemSnapshot {
+#if DEBUG
+        previewSnapshot ?? metrics.snapshot
+#else
+        metrics.snapshot
+#endif
+    }
+
+    private var displayedNetworkIdentity: NetworkIdentity? {
+#if DEBUG
+        previewNetworkIdentity ?? metrics.networkIdentity
+#else
+        metrics.networkIdentity
+#endif
+    }
+
+    private var displayedSystemCardTint: NSColor {
+        Layout.resourceCardGlassTint
     }
 }
 
@@ -490,8 +542,27 @@ private struct ProcessItem: View {
         guard let process else {
             return nil
         }
+
+#if DEBUG
+        if process.pid < 0,
+           let bundleIdentifier = Self.promoBundleIdentifiers[process.name],
+           let applicationURL = NSWorkspace.shared.urlForApplication(
+               withBundleIdentifier: bundleIdentifier
+           ) {
+            return NSWorkspace.shared.icon(forFile: applicationURL.path)
+        }
+#endif
+
         return NSRunningApplication(processIdentifier: process.pid)?.icon
     }
+
+#if DEBUG
+    private static let promoBundleIdentifiers = [
+        "Xcode": "com.apple.dt.Xcode",
+        "Safari": "com.apple.Safari",
+        "Finder": "com.apple.finder"
+    ]
+#endif
 
     var body: some View {
         HStack(spacing: 7) {
@@ -546,13 +617,14 @@ private struct ProcessItem: View {
 private struct SystemCard: View {
     let snapshot: SystemSnapshot
     let networkIdentity: NetworkIdentity?
+    let tintColor: NSColor
     let openSettings: () -> Void
     let quit: () -> Void
 
     var body: some View {
         AppKitGlassEffect(
             cornerRadius: Layout.cardCornerRadius,
-            tintColor: Layout.cardGlassTint,
+            tintColor: tintColor,
             isInteractive: true
         ) {
             VStack(spacing: 9) {
@@ -822,7 +894,63 @@ private extension Double {
     }
 }
 
-#Preview {
-    MenuBarView(openSettings: {}, quit: {})
+#if DEBUG
+extension SystemSnapshot {
+    static let promo = SystemSnapshot(
+        cpuUsage: 0.37,
+        cpuCoreUsages: [0.62, 0.48, 0.41, 0.35, 0.24, 0.18, 0.12, 0.09],
+        cpuPerformanceCoreCount: 4,
+        cpuPerformanceFrequencyHz: 3_820_000_000,
+        cpuEfficiencyFrequencyHz: 2_640_000_000,
+        cpuPowerWatts: 11.8,
+        gpuUsage: 0.24,
+        gpuFrequencyHz: 1_280_000_000,
+        gpuMemoryUsedBytes: 2_684_354_560,
+        gpuMemoryAllocatedBytes: 6_442_450_944,
+        gpuPowerWatts: 7.4,
+        memoryUsage: 0.68,
+        memoryBreakdown: MemoryBreakdown(
+            wiredBytes: 2_276_126_720,
+            activeBytes: 6_517_858_304,
+            compressedBytes: 2_985_984_000,
+            freeBytes: 5_492_441_088
+        ),
+        swapUsedBytes: 644_245_094,
+        diskUsage: 0.56,
+        disk: DiskReading(
+            name: "Macintosh HD",
+            totalBytes: 500_277_790_720,
+            usedBytes: 280_155_562_803,
+            freeBytes: 220_122_227_917
+        ),
+        cpuTemperature: 54,
+        gpuTemperature: 49,
+        fans: [
+            FanReading(index: 0, currentRPM: 1_840, minimumRPM: 1_200, maximumRPM: 6_800),
+            FanReading(index: 1, currentRPM: 1_760, minimumRPM: 1_200, maximumRPM: 6_800)
+        ],
+        networkDownloadBytesPerSecond: 3_420_000,
+        networkUploadBytesPerSecond: 486_000,
+        topCPUProcesses: [
+            ProcessUsage(pid: -101, name: "Xcode", usage: 0.184, memoryBytes: nil),
+            ProcessUsage(pid: -102, name: "Safari", usage: 0.127, memoryBytes: nil),
+            ProcessUsage(pid: -103, name: "Finder", usage: 0.031, memoryBytes: nil)
+        ],
+        topMemoryProcesses: [
+            ProcessUsage(pid: -104, name: "Xcode", usage: 0, memoryBytes: 2_243_624_960),
+            ProcessUsage(pid: -105, name: "Safari", usage: 0, memoryBytes: 1_395_864_371),
+            ProcessUsage(pid: -106, name: "Finder", usage: 0, memoryBytes: 487_378_944)
+        ]
+    )
+}
+
+#Preview("Promo Widget") {
+    MenuBarView(
+        previewSnapshot: .promo,
+        previewNetworkIdentity: NetworkIdentity(ipAddress: "67.159.56.253", countryCode: "US"),
+        openSettings: {},
+        quit: {}
+    )
         .environment(MetricsStore())
 }
+#endif
