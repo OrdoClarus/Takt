@@ -1,5 +1,7 @@
 # Takt
 
+![Takt system monitor for macOS](docs/takt-promo-4k.png)
+
 Takt is a lightweight open-source system monitor for the macOS menu bar.
 It displays CPU, GPU, memory, temperatures, fans, network activity, storage,
 and the processes using the most resources in a compact Liquid Glass panel.
@@ -40,4 +42,3 @@ tracking SDKs are included.
 
 Takt is available under the [MIT License](LICENSE). Third-party acknowledgements
 are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
-
