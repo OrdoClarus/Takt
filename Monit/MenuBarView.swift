@@ -14,6 +14,7 @@ struct MenuBarView: View {
                 ProcessorCard(
                     title: "CPU",
                     symbol: "cpu",
+                    accentColor: .blue,
                     usage: metrics.snapshot.cpuUsage,
                     temperature: metrics.snapshot.cpuTemperature,
                     primaryRows: [
@@ -36,6 +37,7 @@ struct MenuBarView: View {
                 ProcessorCard(
                     title: "GPU",
                     symbol: "square.stack.3d.up.fill",
+                    accentColor: .green,
                     usage: metrics.snapshot.gpuUsage,
                     temperature: metrics.snapshot.gpuTemperature,
                     primaryRows: [
@@ -86,6 +88,14 @@ private enum Layout {
     static let cardPadding: CGFloat = 12
     static let controlEdgeInset: CGFloat = 5
     static let cardCornerRadius: CGFloat = 22
+    static let resourceCardGlassTint = NSColor(name: nil) { appearance in
+        switch appearance.bestMatch(from: [.darkAqua, .aqua]) {
+        case .darkAqua:
+            return .black.withAlphaComponent(0.18)
+        default:
+            return .black.withAlphaComponent(0.10)
+        }
+    }
     static let lightCardGlassTintOpacity: CGFloat = 0.06
     static let darkCardGlassTintOpacity: CGFloat = 0.01
     static let cardGlassTint = NSColor(name: nil) { appearance in
@@ -98,8 +108,8 @@ private enum Layout {
     }
     static let resourceCardHeight: CGFloat = 155
     static let systemCardHeight: CGFloat = 252
-    static let chartColumnWidth: CGFloat = 124
-    static let chartSize: CGFloat = 72
+    static let chartColumnWidth: CGFloat = 140
+    static let chartSize: CGFloat = 82
 }
 
 private struct MetricRow: Identifiable {
@@ -111,6 +121,7 @@ private struct MetricRow: Identifiable {
 private struct ProcessorCard: View {
     let title: String
     let symbol: String
+    let accentColor: Color
     let usage: Double?
     let temperature: Double?
     let primaryRows: [MetricRow]
@@ -125,6 +136,7 @@ private struct ProcessorCard: View {
             ResourceChartColumn(
                 title: title,
                 symbol: symbol,
+                accentColor: accentColor,
                 usage: usage,
                 temperature: temperature
             )
@@ -154,9 +166,15 @@ private struct MemoryCard: View {
         ResourceCard {
             VStack(alignment: .leading, spacing: 8) {
                 Text("RAM")
-                    .font(.title2.weight(.bold))
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
                     .frame(width: Layout.chartSize, alignment: .center)
-                UsageGauge(symbol: "memorychip.fill", usage: usage)
+                    .offset(x: 5)
+                UsageGauge(
+                    symbol: "memorychip.fill",
+                    accentColor: .orange,
+                    usage: usage
+                )
+                .offset(x: 5)
             }
             .frame(width: Layout.chartColumnWidth, alignment: .leading)
 
@@ -181,7 +199,7 @@ private struct ResourceCard<Content: View>: View {
     var body: some View {
         AppKitGlassEffect(
             cornerRadius: Layout.cardCornerRadius,
-            tintColor: Layout.cardGlassTint,
+            tintColor: Layout.resourceCardGlassTint,
             isInteractive: true
         ) {
             HStack(alignment: .center, spacing: 9) {
@@ -190,6 +208,23 @@ private struct ResourceCard<Content: View>: View {
             .padding(Layout.cardPadding)
             .frame(maxWidth: .infinity, minHeight: Layout.resourceCardHeight, maxHeight: Layout.resourceCardHeight)
                     }
+        .overlay {
+            RoundedRectangle(cornerRadius: Layout.cardCornerRadius, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            .white.opacity(0.20),
+                            .white.opacity(0.07),
+                            .black.opacity(0.18)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+                .allowsHitTesting(false)
+        }
+        .shadow(color: .black.opacity(0.24), radius: 8, y: 4)
         .frame(maxWidth: .infinity, minHeight: Layout.resourceCardHeight, maxHeight: Layout.resourceCardHeight)
     }
 }
@@ -197,17 +232,24 @@ private struct ResourceCard<Content: View>: View {
 private struct ResourceChartColumn: View {
     let title: String
     let symbol: String
+    let accentColor: Color
     let usage: Double?
     let temperature: Double?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
-                .font(.title2.weight(.bold))
+                .font(.system(size: 22, weight: .bold, design: .rounded))
                 .frame(width: Layout.chartSize, alignment: .center)
+                .offset(x: 5)
 
-            HStack(alignment: .bottom, spacing: 10) {
-                UsageGauge(symbol: symbol, usage: usage)
+            HStack(alignment: .center, spacing: 13) {
+                UsageGauge(
+                    symbol: symbol,
+                    accentColor: accentColor,
+                    usage: usage
+                )
+                .offset(x: 5)
                 TemperatureGauge(value: temperature)
             }
         }
@@ -217,32 +259,36 @@ private struct ResourceChartColumn: View {
 
 private struct UsageGauge: View {
     let symbol: String
+    let accentColor: Color
     let usage: Double?
 
     private var normalizedUsage: Double {
         usage?.clampedToUnitInterval ?? 0
     }
 
-    private var color: Color {
-        normalizedUsage >= 0.9 ? .red : .orange
-    }
-
     var body: some View {
         ZStack {
             Circle()
-                .stroke(.secondary.opacity(0.16), lineWidth: 5)
+                .fill(.black.opacity(0.10))
+
+            Circle()
+                .stroke(.secondary.opacity(0.22), lineWidth: 5)
 
             Circle()
                 .trim(from: 0, to: normalizedUsage)
-                .stroke(color, style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                .stroke(
+                    accentColor,
+                    style: StrokeStyle(lineWidth: 5, lineCap: .round)
+                )
                 .rotationEffect(.degrees(-90))
+                .shadow(color: accentColor.opacity(0.34), radius: 3)
 
-            VStack(spacing: 1) {
+            VStack(spacing: 3) {
                 Image(systemName: symbol)
-                    .font(.caption)
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.secondary)
                 Text(MetricText.percentage(usage))
-                    .font(.body.weight(.bold).monospacedDigit())
+                    .font(.system(size: 17, weight: .semibold, design: .rounded).monospacedDigit())
                     .contentTransition(.numericText())
             }
         }
@@ -256,34 +302,33 @@ private struct UsageGauge: View {
 private struct TemperatureGauge: View {
     let value: Double?
 
-    private var fill: Double {
-        guard let value else { return 0 }
-        return min(max((value - 25) / 75, 0), 1)
+    private var symbolName: String {
+        guard let value else { return "thermometer.low" }
+        if value >= 75 {
+            return "thermometer.high"
+        }
+        if value >= 55 {
+            return "thermometer.medium"
+        }
+        return "thermometer.low"
     }
 
-    private var color: Color {
+    private var fillColor: Color {
         guard let value else { return .secondary }
-        return value >= 90 ? .red : .cyan
+        return value >= 85 ? .red : .blue
     }
 
     var body: some View {
-        VStack(spacing: 8) {
-            ZStack(alignment: .bottom) {
-                Capsule()
-                    .fill(.secondary.opacity(0.16))
-                Capsule()
-                    .fill(color)
-                    .frame(height: 45 * fill)
-            }
-            .frame(width: 10, height: 40)
-            .overlay {
-                Capsule()
-                    .stroke(.secondary.opacity(0.25), lineWidth: 1)
-            }
+        VStack(spacing: 2) {
+            Image(systemName: symbolName)
+                .font(.system(size: 25, weight: .regular))
+                .symbolRenderingMode(.palette)
+                .foregroundStyle(fillColor, .primary)
+                .frame(width: 20, height: 43)
 
             Text(value.map { "\(Int($0.rounded()))°" } ?? "N/A")
-                .font(.caption.monospacedDigit())
-                .frame(minWidth: 32)
+                .font(.system(size: 14, weight: .semibold, design: .rounded).monospacedDigit())
+                .frame(minWidth: 38)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Temperature")
